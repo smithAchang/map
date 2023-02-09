@@ -1,0 +1,6 @@
+.PHONY: map
+
+map:
+	@echo "a map module of c language"
+	@rm *.o
+	gcc -g -O0 -W -Wall -O0 -c map.c
