@@ -27,10 +27,11 @@ static unsigned map_hash(const char *str) {
 }
 
 
-static map_node_t *map_newnode(const char *key, void *value, int vsize) {
+static map_node_t *map_newnode(const char *key, void *value, unsigned vsize) {
   map_node_t *node;
-  int ksize = strlen(key) + 1;
-  int voffset = ksize + ((sizeof(void*) - ksize) % sizeof(void*));
+  unsigned ksize = strlen(key) + 1;
+  /*padding for machine byte alignment*/
+  unsigned voffset = ksize + ((sizeof(void*) - ksize) % sizeof(void*));
   node = malloc(sizeof(*node) + voffset + vsize);
   if (!node) return NULL;
   memcpy(node + 1, key, ksize);
@@ -55,11 +56,11 @@ static void map_addnode(map_base_t *m, map_node_t *node) {
 }
 
 
-static int map_resize(map_base_t *m, int nbuckets) {
+int map_resize(map_base_t *m, unsigned nbuckets) {
   map_node_t *nodes, *node, *next;
   map_node_t **buckets;
   int i; 
-  /* Chain all nodes together */
+  /* MUST: Chain all nodes together before realloc*/
   nodes = NULL;
   i = m->nbuckets;
   while (i--) {
@@ -130,8 +131,9 @@ void *map_get_(map_base_t *m, const char *key) {
 }
 
 
-int map_set_(map_base_t *m, const char *key, void *value, int vsize) {
-  int n, err;
+int map_set_(map_base_t *m, const char *key, void *value, unsigned vsize) {
+  int err;
+  unsigned n;
   map_node_t **next, *node;
   /* Find & replace existing node */
   next = map_getref(m, key);
@@ -143,7 +145,23 @@ int map_set_(map_base_t *m, const char *key, void *value, int vsize) {
   node = map_newnode(key, value, vsize);
   if (node == NULL) goto fail;
   if (m->nnodes >= m->nbuckets) {
-    n = (m->nbuckets > 0) ? (m->nbuckets << 1) : 1;
+    if(m->nbuckets == 0)
+    {
+       n  = 1;
+    }
+    else
+    {
+      const unsigned tempCalc = m->nbuckets << 1;
+      if(tempCalc == 0)
+      {
+        /*max boundary*/
+        goto fail;
+      }
+      else
+      {
+        n = tempCalc;
+      }
+    }
     err = map_resize(m, n);
     if (err) goto fail;
   }
@@ -189,5 +207,6 @@ const char *map_next_(map_base_t *m, map_iter_t *iter) {
       iter->node = m->buckets[iter->bucketidx];
     } while (iter->node == NULL);
   }
+  /*pointer to key field*/
   return (char*) (iter->node + 1);
 }
