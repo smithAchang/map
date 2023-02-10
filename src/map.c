@@ -27,7 +27,7 @@ static unsigned map_hash(const char *str) {
 }
 
 
-static map_node_t *map_newnode(const char *key, unsigned map_keysize, void *value, unsigned vsize) {
+static map_node_t *map_newnode(const void *key, unsigned map_keysize, void *value, unsigned vsize) {
   map_node_t *node;
   unsigned ksize;
   
@@ -42,7 +42,6 @@ static map_node_t *map_newnode(const char *key, unsigned map_keysize, void *valu
     if(map_keysize > ksize) return NULL;
   }
   
-  unsigned ksize = strlen(key) + 1;
   /*padding for machine byte alignment*/
   unsigned voffset = ksize + ((sizeof(void*) - ksize) % sizeof(void*));
   node = malloc(sizeof(*node) + voffset + vsize);
