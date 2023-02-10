@@ -27,15 +27,39 @@ static unsigned map_hash(const char *str) {
 }
 
 
-static map_node_t *map_newnode(const char *key, void *value, unsigned vsize) {
+static map_node_t *map_newnode(const char *key, unsigned map_keysize, void *value, unsigned vsize) {
   map_node_t *node;
+  unsigned ksize;
+  
+  if(map_keysize == 0)
+  {
+    ksize = strlen((const char*)key) + 1;
+  }
+  else
+  {
+    /*consider as primitive types, create box for them*/
+    ksize = sizeof(void*);
+    if(map_keysize > ksize) return NULL;
+  }
+  
   unsigned ksize = strlen(key) + 1;
   /*padding for machine byte alignment*/
   unsigned voffset = ksize + ((sizeof(void*) - ksize) % sizeof(void*));
   node = malloc(sizeof(*node) + voffset + vsize);
   if (!node) return NULL;
-  memcpy(node + 1, key, ksize);
-  node->hash = map_hash(key);
+  
+  if(map_keysize == 0)
+  {
+     memcpy(node + 1, key, ksize);
+     node->hash = map_hash(key);
+  }
+  else
+  {
+    /*consider as primitive types*/
+    *(const void**)(node+1) = key;
+    node->hash              = (unsigned)key;
+  }
+  
   node->value = ((char*) (node + 1)) + voffset;
   memcpy(node->value, value, vsize);
   return node;
@@ -93,14 +117,22 @@ int map_resize(map_base_t *m, unsigned nbuckets) {
 }
 
 
-static map_node_t **map_getref(map_base_t *m, const char *key) {
-  unsigned hash = map_hash(key);
+static map_node_t **map_getref(map_base_t *m, const void *key) {
+  const unsigned ksize = m->nkeysize;
+  const unsigned hash = ksize == 0 ?  map_hash(key) : (unsigned)key;
   map_node_t **next;
   if (m->nbuckets > 0) {
     next = &m->buckets[map_bucketidx(m, hash)];
     while (*next) {
-      if ((*next)->hash == hash && !strcmp((char*) (*next + 1), key)) {
-        return next;
+      if ((*next)->hash == hash) {
+        if(ksize == 0 && !strcmp((const char*) (*next + 1), key))
+        {
+           return next;
+        }
+        else if(key == *(const void**)(*next + 1))
+        {
+           return next;
+        } 
       }
       next = &(*next)->next;
     }
@@ -125,13 +157,13 @@ void map_deinit_(map_base_t *m) {
 }
 
 
-void *map_get_(map_base_t *m, const char *key) {
+void *map_get_(map_base_t *m, const void *key) {
   map_node_t **next = map_getref(m, key);
   return next ? (*next)->value : NULL;
 }
 
 
-int map_set_(map_base_t *m, const char *key, void *value, unsigned vsize) {
+int map_set_(map_base_t *m, const void *key, void *value, unsigned vsize) {
   int err;
   unsigned n;
   map_node_t **next, *node;
@@ -141,8 +173,9 @@ int map_set_(map_base_t *m, const char *key, void *value, unsigned vsize) {
     memcpy((*next)->value, value, vsize);
     return 0;
   }
+  
   /* Add new node */
-  node = map_newnode(key, value, vsize);
+  node = map_newnode(key, m->nkeysize, value, vsize);
   if (node == NULL) goto fail;
   if (m->nnodes >= m->nbuckets) {
     if(m->nbuckets == 0)
@@ -159,9 +192,11 @@ int map_set_(map_base_t *m, const char *key, void *value, unsigned vsize) {
       }
       else
       {
+        /*size must be power of 2*/
         n = tempCalc;
       }
     }
+    
     err = map_resize(m, n);
     if (err) goto fail;
   }
