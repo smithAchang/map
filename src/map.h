@@ -17,7 +17,7 @@ typedef struct map_node_t map_node_t;
 
 typedef struct {
   map_node_t **buckets;
-  unsigned nbuckets, nnodes;
+  unsigned nbuckets, nnodes, nkeysize;
 } map_base_t;
 
 typedef struct {
@@ -60,8 +60,8 @@ typedef struct {
 
 
 void map_deinit_(map_base_t *m);
-void *map_get_(map_base_t *m, const char *key);
-int map_set_(map_base_t *m, const char *key, void *value, unsigned vsize);
+void *map_get_(map_base_t *m, const void *key);
+int map_set_(map_base_t *m, const void *key, void *value, unsigned vsize);
 void map_remove_(map_base_t *m, const char *key);
 map_iter_t map_iter_(void);
 const char *map_next_(map_base_t *m, map_iter_t *iter);
