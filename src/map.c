@@ -118,7 +118,7 @@ int map_resize(map_base_t *m, unsigned nbuckets) {
 
 static map_node_t **map_getref(map_base_t *m, const void *key) {
   const unsigned ksize = m->nkeysize;
-  const unsigned hash = ksize == 0 ?  map_hash(key) : (unsigned)key;
+  const unsigned hash  = ksize == 0 ?  map_hash(key) : (unsigned)key;
   map_node_t **next;
   if (m->nbuckets > 0) {
     next = &m->buckets[map_bucketidx(m, hash)];
