@@ -7,7 +7,7 @@ so I extend it to support primitive types using as a key :)
 + enhance the robustness for parameter type security
 + extend the code to support primitive types. e.g. int using the same skills of [/rxi/map](https://github.com/rxi/map)
 
-## usage
+## extended usage
 Before using a extended map it should first be initialised using the `map_init()`
 function.
 ```c
