@@ -228,7 +228,7 @@ map_iter_t map_iter_(void) {
 }
 
 
-const char *map_next_(map_base_t *m, map_iter_t *iter) {
+const void *map_next_(map_base_t *m, map_iter_t *iter) {
   if (iter->node) {
     iter->node = iter->node->next;
     if (iter->node == NULL) goto nextBucket;
@@ -242,5 +242,5 @@ const char *map_next_(map_base_t *m, map_iter_t *iter) {
     } while (iter->node == NULL);
   }
   /*pointer to key field*/
-  return (char*) (iter->node + 1);
+  return (const void*) (iter->node + 1);
 }
