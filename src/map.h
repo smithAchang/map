@@ -60,7 +60,7 @@ typedef struct {
 
 ////// can use primitive types as key //////
 #define map_ex_t(KT, VT)\
-  struct { map_base_t base; T *ref; T tmp; union { KT k; const void* kbox; }; }
+  struct { map_base_t base; VT *ref; VT tmp; union { KT k; const void* kbox; }; }
 
 
 #define map_init_ex(m)\

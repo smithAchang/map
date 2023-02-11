@@ -7,10 +7,20 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include<time.h>
+#include <time.h>
+#include <limits.h>
 #include <Unity/unity.h>
 
 #include "map.h"
+
+typedef struct {
+   union{
+     unsigned char uc;
+     unsigned short us;
+     unsigned int ui;
+     const void* pv;
+   };
+} Basic_Assumption_t;
 
 clock_t beginTM, endTM;
 
@@ -25,6 +35,39 @@ void tearDown(void)
   printf("%s ...\n", __func__);
   endTM = clock();
   printf("%s eclipsed seconds = %ld (s), ms = %ld (ms)\n", __func__, (endTM - beginTM)/CLOCKS_PER_SEC, (endTM - beginTM));
+}
+
+void testBasicAssumption(void)
+{
+  
+  Basic_Assumption_t  a, b;
+ 
+
+  for(unsigned char i=0; i<UCHAR_MAX; ++i)
+  {
+       a.uc = i;
+       b.pv = (const void*)i;    
+       TEST_ASSERT_EQUAL_INT8_MESSAGE(a.uc, b.uc, "when assigning the box field,  the fields of the char type of the  union must be equal");
+       TEST_ASSERT_EQUAL_PTR_MESSAGE(a.uc, b.pv, "the box field must be equal to  the field of the char type");
+  }
+  
+  for(unsigned short i=0; i<USHRT_MAX; ++i)
+  {
+       a.us = i;
+       b.pv = (const void*)i;    
+       TEST_ASSERT_EQUAL_INT16_MESSAGE(a.us, b.us, "when assigning the box field,  the fields of the short type of the  union must be equal");
+       TEST_ASSERT_EQUAL_PTR_MESSAGE(a.us, b.pv, "the box field must be equal to  the field of the short type");
+  }
+
+
+  for(unsigned int i=0; i<UINT_MAX;++i)
+  {
+       a.ui = i;
+       b.pv = (const void*)i;    
+       TEST_ASSERT_EQUAL_INT_MESSAGE(a.ui, b.ui, "when assigning the box field,  the fields of the int type of the  union must be equal");
+       TEST_ASSERT_EQUAL_PTR_MESSAGE(a.ui, b.pv, "the box field must be equal to  the field of the int type");
+  }
+
 }
 
 
@@ -83,14 +126,100 @@ void testvoidpointermap(void)
    map_deinit(&m);
 }
 
+void testint2intmap(void)
+{
+  map_int2int_t m;
+  map_init_ex(&m);
+  
+  const unsigned int max_keys = 1 << 24;
+   
+  
+  for(unsigned int i=0 ;i < max_keys; ++i)
+  {
+    map_set_ex(&m, i, i);
+  }
+ 
+  
+  for(unsigned int i=0 ;i < max_keys; ++i)
+  {
+    TEST_ASSERT_EQUAL_INT_MESSAGE(i, *map_get_ex(&m, i), "must equal when get int2int value from map");
+  }
+}
+
+void testint2intmap_iter(void)
+{
+
+  
+  map_int2int_t m;
+  map_init_ex(&m);
+  
+  int key  = 123456;
+
+  map_set_ex(&m, key, key);
+
+  const int *pkey;
+  map_iter_t iter = map_iter(&m);
+
+  while ((pkey = map_next(&m, &iter))) {
+    TEST_ASSERT_EQUAL_INT_MESSAGE(key, *map_get_ex(&m, *pkey), "value must equal when get int2int using iter");
+  }
+}
+
+void testint2pvoidmap(void)
+{
+  map_int2pvoid_t m;
+  map_init_ex(&m);
+  
+  const unsigned int max_keys = 1 << 24;
+   
+  
+  for(unsigned int i=0 ;i < max_keys; ++i)
+  {
+    map_set_ex(&m, i, (void*)i);
+  }
+ 
+  
+  for(unsigned int i=0 ;i < max_keys; ++i)
+  {
+    TEST_ASSERT_EQUAL_PTR_MESSAGE(i, *map_get_ex(&m, i), "value must equal when get int2int value from map");
+  }
+}
+
+
+void testint2pvoidmap_iter(void)
+{
+  map_int2pvoid_t m;
+  map_init_ex(&m);
+ 
+  int key      = 123456; 
+  char szKey[] = "123456";
+   
+  
+  map_set_ex(&m, key, (void*)szKey);
+ 
+  const void **pkey;
+  map_iter_t iter = map_iter(&m);
+
+  while ((pkey = map_next(&m, &iter))) {
+    TEST_ASSERT_EQUAL_PTR_MESSAGE(szKey, *map_get_ex(&m, *pkey), "value must equal when get int2pvoid value from map using iter");
+  }
+}
+
+
 int main(void)
 {
-   printf("hello world for testing!\n");
+    printf("hello world for testing!\n");
    
     UNITY_BEGIN();
     
+    RUN_TEST(testBasicAssumption);
+
     RUN_TEST(testintmap);
     RUN_TEST(testvoidpointermap);
+    RUN_TEST(testint2intmap);
+    RUN_TEST(testint2intmap_iter);
+    RUN_TEST(testint2pvoidmap);
+    RUN_TEST(testint2pvoidmap_iter);
     
     UNITY_END();
 

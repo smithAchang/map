@@ -6,4 +6,4 @@ vpath %.c .:Unity/:../src
 unittest: map.c unity.c main.c 
 	@echo "test program for map compent"
 	@rm *.o || true
-	gcc -g3 -O0 -W -Wall -O0 -I. -I../src $^ -o $@
+	gcc -g3 -O0 -W -Wall -Wno-int-to-pointer-cast  -Wno-pointer-to-int-cast -I. -I../src $^ -o $@
