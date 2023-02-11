@@ -1,3 +1,57 @@
+
+# caption
+the source code of (rxi/map)[rxi/map] is very clear and effective, but it only provides the char* type as a key.
+so I extend it to support primitive types using as a key :)
+
+## extended map
++ enhance the robustnees for parameter type security
++ extend the code to support primitive types. e.g. int using the skills of (rxi/map)[rxi/map]
+
+## Usage
+Before using a extended map it should first be initialised using the `map_init()`
+function.
+```c
+map_int2int_t m;
+map_init_ex(&m);
+```
+
+Values can added to a map using the `map_set_ex()` function.
+```c
+map_set_ex(&m, 123, 123);
+```
+
+To retrieve a value from a extended map, the `map_get_ex()` function can be used.
+`map_get_ex()` will return a pointer to void, or `NULL` if no mapping
+for that key exists.
+```c
+int *val = map_get_ext(&m, 123);
+if (val) {
+  printf("value: %d\n", *val);
+} else {
+  printf("value not found\n");
+}
+```
+
+When you are done with a map the `map_deinit_ex()` function should be called on
+it. This will free any memory the map allocated during use.
+```c
+map_deinit_ex(&m);
+```
+
+## extended Types
+extend map.h provides the following predefined map types:
+
+Key Type        |Contained Type  | Type name
+----------------|----------------|----------------------------------
+int             | int            | map_int2int_t
+int             | void*          | map_int2pvoid_t
+
+
+
+---
+
+
+
 # map
 A type-safe generic hashmap implementation for C.
 
