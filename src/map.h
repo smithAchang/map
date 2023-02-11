@@ -58,13 +58,52 @@ typedef struct {
 #define map_next(m, iter)\
   map_next_(&(m)->base, iter)
 
+////// can use primitive types as key //////
+#define map_ex_t(KT, VT)\
+  struct { map_base_t base; T *ref; T tmp; union { KT k; const void* kbox; }; }
 
+
+#define map_init_ex(m)\
+  map_init(m);\
+  (m)->base.nkeysize = sizeof((m)->k);
+
+
+#define map_deinit_ex(m)\
+  map_deinit(m)
+
+
+#define map_get_ex(m, key)\
+  ( (m)->kbox = (const void*)key,\
+    (m)->ref = map_get_(&(m)->base, (m)->kbox))
+
+
+#define map_set_ex(m, key, value)\
+  ( (m)->kbox = (const void*)key,\
+    (m)->tmp = (value),\
+    map_set_(&(m)->base, (m)->kbox, &(m)->tmp, sizeof((m)->tmp)) )
+
+
+#define map_remove_ex(m, key)\
+  ( (m)->kbox = (const void*)key,\
+    map_remove_(&(m)->base, (m)->kbox))
+
+
+#define map_iter_ex(m)\
+  map_iter(m)
+
+
+#define map_next_ex(m, iter)\
+  map_next(m, iter)
+
+
+////// public methods //////
 void map_deinit_(map_base_t *m);
 void *map_get_(map_base_t *m, const void *key);
 int map_set_(map_base_t *m, const void *key, void *value, unsigned vsize);
 void map_remove_(map_base_t *m, const char *key);
 map_iter_t map_iter_(void);
-const char *map_next_(map_base_t *m, map_iter_t *iter);
+const void *map_next_(map_base_t *m, map_iter_t *iter);
+/*for earlier reserving space usage*/
 int map_resize(map_base_t *m, unsigned nbuckets);
 
 
@@ -74,5 +113,10 @@ typedef map_t(int) map_int_t;
 typedef map_t(char) map_char_t;
 typedef map_t(float) map_float_t;
 typedef map_t(double) map_double_t;
+
+
+typedef map_ex_t(int, int) map_int2int_t;
+typedef map_ex_t(int, void*) map_int2pvoid_t;
+
 
 #endif
