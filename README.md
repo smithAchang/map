@@ -4,7 +4,7 @@ the source code of [/rxi/map](https://github.com/rxi/map) is very clear and effe
 so I extend it to support primitive types using as a key :)
 
 ## extended map
-+ enhance the robustnees for parameter type security
++ enhance the robustness for parameter type security
 + extend the code to support primitive types. e.g. int using the same skills of [/rxi/map](https://github.com/rxi/map)
 
 ## usage
