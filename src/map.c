@@ -13,8 +13,8 @@ struct map_node_t {
   unsigned hash;
   void *value;
   map_node_t *next;
-  /* char key[]; */
-  /* char value[]; */
+  unsigned char key[];
+  /* char value[]; *//*must skip the key field by ksize*/
 };
 
 
@@ -31,12 +31,10 @@ static map_node_t *map_newnode(const void *key, unsigned map_keysize, void *valu
   map_node_t *node;
   unsigned ksize;
   
-  if(map_keysize == 0)
-  {
+  if(map_keysize == 0) {
     ksize = strlen((const char*)key) + 1;
   }
-  else
-  {
+  else {
     /*consider as primitive types, create box for them*/
     ksize = sizeof(void*);
     if(map_keysize > ksize) return NULL;
@@ -47,19 +45,17 @@ static map_node_t *map_newnode(const void *key, unsigned map_keysize, void *valu
   node = malloc(sizeof(*node) + voffset + vsize);
   if (!node) return NULL;
   
-  if(map_keysize == 0)
-  {
-     memcpy(node + 1, key, ksize);
+  if(map_keysize == 0) {
+     memcpy(node->key, key, ksize);
      node->hash = map_hash(key);
   }
-  else
-  {
+  else {
     /*consider as primitive types*/
-    *(const void**)(node+1) = key;
-    node->hash              = (unsigned)key;
+    *(const void**)(node->key) = key;
+    node->hash                 = (unsigned)key;
   }
   
-  node->value = ((char*) (node + 1)) + voffset;
+  node->value = ((char*) (node->key)) + voffset;
   memcpy(node->value, value, vsize);
   return node;
 }
@@ -73,13 +69,21 @@ static int map_bucketidx(map_base_t *m, unsigned hash) {
 
 
 static void map_addnode(map_base_t *m, map_node_t *node) {
-  int n = map_bucketidx(m, node->hash);
-  node->next = m->buckets[n];
+  int n         = map_bucketidx(m, node->hash);
+  node->next    = m->buckets[n];
   m->buckets[n] = node;
 }
 
 
-int map_resize(map_base_t *m, unsigned nbuckets) {
+static void map_remove_node(map_base_t *m, map_node_t** pre_next) {
+  map_node_t* node  = *pre_next;
+  *pre_next         = node->next;
+  free(node);
+  m->nnodes--;  
+}
+
+
+int map_resize_(map_base_t *m, unsigned nbuckets) {
   map_node_t *nodes, *node, *next;
   map_node_t **buckets;
   int i; 
@@ -115,21 +119,19 @@ int map_resize(map_base_t *m, unsigned nbuckets) {
   return (buckets == NULL) ? -1 : 0;
 }
 
-
+/* return head's or next field's pointer of predecessor for modifying the field in future */
 static map_node_t **map_getref(map_base_t *m, const void *key) {
   const unsigned ksize = m->nkeysize;
   const unsigned hash  = ksize == 0 ?  map_hash(key) : (unsigned)key;
   map_node_t **next;
   if (m->nbuckets > 0) {
-    next = &m->buckets[map_bucketidx(m, hash)];
+    next = &m->heads[map_bucketidx(m, hash)];
     while (*next) {
       if ((*next)->hash == hash) {
-        if(ksize == 0 && !strcmp((const char*) (*next + 1), key))
-        {
+        if(ksize == 0 && !strcmp((const char*) ((*next)->key), key)) {
            return next;
         }
-        else if(key == *(const void**)(*next + 1))
-        {
+        else if(key == *(const void**)((*next)->key)) {
            return next;
         } 
       }
@@ -177,26 +179,23 @@ int map_set_(map_base_t *m, const void *key, void *value, unsigned vsize) {
   node = map_newnode(key, m->nkeysize, value, vsize);
   if (node == NULL) goto fail;
   if (m->nnodes >= m->nbuckets) {
-    if(m->nbuckets == 0)
-    {
-       n  = 1;
+    if(m->nbuckets == 0) {
+       /*when size is small enough, you can use vector. so the default value is 256*/
+       n  = 256;
     }
-    else
-    {
+    else {
       const unsigned tempCalc = m->nbuckets << 1;
-      if(tempCalc == 0)
-      {
+      if(tempCalc == 0) {
         /*max boundary*/
         goto fail;
       }
-      else
-      {
+      else {
         /*size must be power of 2*/
         n = tempCalc;
       }
     }
     
-    err = map_resize(m, n);
+    err = map_resize_(m, n);
     if (err) goto fail;
   }
   map_addnode(m, node);
@@ -212,10 +211,7 @@ void map_remove_(map_base_t *m, const void *key) {
   map_node_t *node;
   map_node_t **next = map_getref(m, key);
   if (next) {
-    node = *next;
-    *next = (*next)->next;
-    free(node);
-    m->nnodes--;
+    map_remove_node(m, next);
   }
 }
 
@@ -223,13 +219,19 @@ void map_remove_(map_base_t *m, const void *key) {
 map_iter_t map_iter_(void) {
   map_iter_t iter;
   iter.bucketidx = -1;
-  iter.node = NULL;
+  iter.node      = NULL;
+  iter.opaque    = NULL;
   return iter;
 }
 
 
 const void *map_next_(map_base_t *m, map_iter_t *iter) {
-  if (iter->node) {
+  if (iter->opaque) {
+    iter->node   = (map_node_t*)iter->opaque;
+    iter->opaque = NULL;
+    if (iter->node == NULL) goto nextBucket;
+  } 
+  else if (iter->node) {
     iter->node = iter->node->next;
     if (iter->node == NULL) goto nextBucket;
   } else {
@@ -238,9 +240,35 @@ const void *map_next_(map_base_t *m, map_iter_t *iter) {
       if (++iter->bucketidx >= m->nbuckets) {
         return NULL;
       }
-      iter->node = m->buckets[iter->bucketidx];
+      iter->node = m->nexts[iter->bucketidx];
     } while (iter->node == NULL);
   }
   /*pointer to key field*/
-  return (const void*) (iter->node + 1);
+  return (const void*) (iter->node->key);
+}
+
+
+int map_iter_acceptor_(map_iter_t *iter, Iter_Visitor_Func cb) {
+    return cb(iter->node->key, iter->node->value);
+}
+
+
+map_iter_t* map_iter_remove_(map_base_t *m, map_iter_t *iter) {
+  if(iter->opaque) return NULL;
+
+  if (iter->node) {
+     const void*  key = iter->node->key;
+     if(m->nkeysize != 0) {
+        key = *(const void**)iter->node->key;
+     }
+
+     map_node_t **predecessor_next_ptr = map_getref(m, key);
+     if (predecessor_next_ptr) {
+       map_remove_node(m, predecessor_next_ptr);
+       /*store successor node for next operation after removal*/
+       iter->opaque      = *predecessor_next_ptr;
+       iter->node        = NULL;
+     } 
+  }
+  return iter;
 }

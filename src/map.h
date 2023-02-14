@@ -15,14 +15,22 @@
 struct map_node_t;
 typedef struct map_node_t map_node_t;
 
+
 typedef struct {
-  map_node_t **buckets;
+  union {
+   map_node_t **buckets;
+   map_node_t **heads;
+   map_node_t **nexts;
+  };
+  
   unsigned nbuckets, nnodes, nkeysize;
 } map_base_t;
 
-typedef struct {
+
+typedef struct map_iter_t {
   unsigned bucketidx;
   map_node_t *node;
+  void* opaque;
 } map_iter_t;
 
 
@@ -51,8 +59,16 @@ typedef struct {
   map_remove_(&(m)->base, key)
 
 
+#define map_resize(m, n)\
+  map_resize_(&(m)->base, n)
+
+
 #define map_iter(m)\
   map_iter_()
+
+
+#define map_iter_remove(m, iter)\
+  map_iter_remove_(&(m)->base, iter)
 
 
 #define map_next(m, iter)\
@@ -89,8 +105,16 @@ typedef struct {
     map_remove_(&(m)->base, (m)->kbox))
 
 
+#define map_resize_ex(m, n)\
+  map_resize(m, n)
+
+
 #define map_iter_ex(m)\
   map_iter(m)
+
+
+#define map_iter_remove_ex(m, iter)\
+  map_iter_remove(m, iter)
 
 
 #define map_next_ex(m, iter)\
@@ -103,9 +127,12 @@ void *map_get_(map_base_t *m, const void *key);
 int map_set_(map_base_t *m, const void *key, void *value, unsigned vsize);
 void map_remove_(map_base_t *m, const void *key);
 map_iter_t map_iter_(void);
+map_iter_t* map_iter_remove_(map_base_t *m, map_iter_t *iter);
+typedef int (*Iter_Visitor_Func)(const void* key, const void* value);
+int map_iter_acceptor_(map_iter_t *iter, Iter_Visitor_Func cb);
 const void *map_next_(map_base_t *m, map_iter_t *iter);
 /*for earlier reserving space usage*/
-int map_resize(map_base_t *m, unsigned nbuckets);
+int map_resize_(map_base_t *m, unsigned nbuckets);
 
 
 typedef map_t(void*) map_void_t;
