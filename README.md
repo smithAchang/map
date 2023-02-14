@@ -6,6 +6,7 @@ so I extend it to support primitive types using as a key :)
 ## extended map
 + enhance the robustness for parameter type security
 + extend the code to support primitive types. e.g. int using the same skills of [/rxi/map](https://github.com/rxi/map)
++ extend the code to support map_iter_remove* when iterating
 
 ## extended usage
 Before using a extended map it should first be initialised using the `map_init()`
@@ -24,7 +25,7 @@ To retrieve a value from a extended map, the `map_get_ex()` function can be used
 `map_get_ex()` will return a pointer to void, or `NULL` if no mapping
 for that key exists.
 ```c
-int *val = map_get_ext(&m, 123);
+int *val = map_get_ex(&m, 123);
 if (val) {
   printf("value: %d\n", *val);
 } else {
@@ -39,7 +40,7 @@ map_deinit_ex(&m);
 ```
 
 ## extended Types
-extend map.h provides the following predefined map types:
+extended map.h provides the following predefined map types:
 
 Key Type        |Contained Type  | Type name
 ----------------|----------------|----------------------------------
