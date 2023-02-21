@@ -21,7 +21,7 @@ struct map_node_t {
 static unsigned map_hash(const char *str) {
   unsigned hash = 5381;
   while (*str) {
-    /*using the same alg as JAVA; ^ operator will produce more collisions*/
+    /*using the Time33 | djb2 hash alg; ^ operator will produce more collisions*/
     hash = ((hash << 5) + hash) + *str++;
   }
   return hash;
