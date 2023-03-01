@@ -11,8 +11,8 @@ struct { ring_queue_base_t base; T* pq; }
 
 #define ring_queue_init(Q, CAPACITY)\
     (Q)->base.front    = (Q)->base.rear = 0;\
-    (Q)->base.capacity = CAPACITY;\
-    (Q)->pq            = malloc((CAPACITY)*sizeof(((Q)->pq[0])));\
+    (Q)->base.capacity = (CAPACITY) + 1;\
+    (Q)->pq            = malloc((Q)->base.capacity * sizeof(((Q)->pq[0])));\
     if((Q)->pq == NULL) { (Q)->base.capacity = 0; }\
     (Q)->base.capacity = (Q)->base.capacity
 
@@ -23,6 +23,9 @@ struct { ring_queue_base_t base; T* pq; }
     if((Q)->pq != NULL) { free((Q)->pq); }\
     (Q)->base.front    = (Q)->base.rear = (Q)->base.capacity = 0;\
     (Q)->pq            = NULL
+
+#define ring_queue_capacity(Q)\
+   ((Q)->base.capacity != 0 ? (Q)->base.capacity - 1 : 0)
 
 #define ring_queue_len(Q)\
    (((Q)->base.capacity + (Q)->base.rear - (Q)->base.front) % (Q)->base.capacity)

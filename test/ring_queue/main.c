@@ -73,7 +73,6 @@ int testMacroRet2()
 
   ring_queue_en(&ai, 2, -1);
   ring_queue_en(&ai, 3, -1);
-  ring_queue_en(&ai, 4, -1);
 
   ring_queue_de(&ai, j, -1);
   printf("%s dequeue: %d\n", __func__, j);
@@ -104,6 +103,8 @@ void testQueueFull()
 
   ring_queue_en_no_return(&ai, 4);
   TEST_ASSERT_FALSE_MESSAGE(1, "flow must not reach here");
+
+  ring_queue_deinit(&ai);
 
 }
 
@@ -137,7 +138,9 @@ void testQueueEmpty()
 
   ring_queue_de_no_return(&ai, j);
   TEST_ASSERT_FALSE_MESSAGE(1, "flow must not reach here");
-  
+
+  ring_queue_deinit(&ai);
+
 }
 
 void setUp(void)
@@ -164,8 +167,8 @@ void testAsStructMbr()
   ring_queue_init(&a.q_int, 123);
   ring_queue_init(&a.q_intptr, 127);
 
-  TEST_ASSERT_EQUAL_UINT_MESSAGE(123, a.q_int.base.capacity, "capacity must be 123");
-  TEST_ASSERT_EQUAL_UINT_MESSAGE(127,  a.q_intptr.base.capacity, "capacity must be 127");
+  TEST_ASSERT_EQUAL_UINT_MESSAGE(123, ring_queue_capacity(&a.q_int), "capacity must be 123");
+  TEST_ASSERT_EQUAL_UINT_MESSAGE(127, ring_queue_capacity(&a.q_intptr), "capacity must be 127");
 
   int *w = (int*)65;
   ring_queue_en_no_return(&a.q_int, 256);
@@ -177,6 +180,9 @@ void testAsStructMbr()
 
   ring_queue_de_no_return(&a.q_intptr, y);
   TEST_ASSERT_EQUAL_INT_MESSAGE(w, y, "dequeue got value must be 65");
+
+  ring_queue_deinit(&a.q_int);
+  ring_queue_deinit(&a.q_intptr);
 }
 
 void testintptrqueue()
@@ -186,7 +192,7 @@ void testintptrqueue()
 
   ring_queue_init(&ai, 256);
   
-  TEST_ASSERT_EQUAL_UINT_MESSAGE(256, ai.base.capacity, "capacity must be 256");
+  TEST_ASSERT_EQUAL_UINT_MESSAGE(256, ring_queue_capacity(&ai), "capacity must be 256");
   
   int *i = (int*)256, *j  = (int*)64;
   
@@ -200,6 +206,27 @@ void testintptrqueue()
   ring_queue_de_no_return(&ai, h);
   TEST_ASSERT_EQUAL_PTR_MESSAGE(j, h, "dequeue got value must be 64");
 
+  ring_queue_deinit(&ai);
+
+}
+
+void testLoopQueue()
+{
+  unsigned int capacity = 3; 
+  ring_queue_int_t  ai;
+  ring_queue_init(&ai, capacity);
+
+  for(unsigned int i=0; i< (3*capacity); ++i)
+  {
+     ring_queue_en_no_return(&ai, i); 
+     TEST_ASSERT_EQUAL_UINT_MESSAGE(1, ring_queue_len(&ai), "len must be one"); 
+     int j;
+     ring_queue_de_no_return(&ai, j); 
+     TEST_ASSERT_TRUE_MESSAGE(ring_queue_empty(&ai), "queue must be empty"); 
+     TEST_ASSERT_EQUAL_UINT_MESSAGE(i, j, "queue value must be equal"); 
+  }
+  
+  ring_queue_deinit(&ai);
 }
 
 int main(void)
@@ -213,6 +240,7 @@ int main(void)
 
   UNITY_BEGIN();
 
+  RUN_TEST(testLoopQueue);
   RUN_TEST(testintptrqueue);
   RUN_TEST(testAsStructMbr);
   RUN_TEST(testQueueEmpty);
