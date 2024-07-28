@@ -22,19 +22,18 @@ typedef struct {
    };
 } Basic_Assumption_t;
 
-clock_t beginTM, endTM;
+static clock_t s_beginTM, s_endTM;
 
 void setUp(void)
 {
-  printf("%s ...\n", __func__);
-  beginTM = clock();
+  printf("\n%s ...\n", __func__);
+  s_beginTM = clock();
 }
 
 void tearDown(void)
 {
-  printf("\n%s ...\n", __func__);
-  endTM = clock();
-  printf("%s eclipsed seconds = %ld (s), ms = %ld (ms)\n", __func__, (endTM - beginTM)/CLOCKS_PER_SEC, (endTM - beginTM));
+  s_endTM = clock();
+  printf("%s eclipsed seconds = %.3lf (s)\n", __func__, (double)(s_endTM - s_beginTM)/CLOCKS_PER_SEC);
 }
 
 void testBasicAssumption(void)
@@ -89,7 +88,7 @@ void testintmap(void)
   map_init(&m);
   const unsigned int max_keys = 1 << 24;
  
-  printf("%s resverve map before test ...\n", __func__); 
+  printf("%s resize map before test ...\n", __func__); 
   map_resize(&m, max_keys);
  
   char szPrefix[] = "testkey";
@@ -187,6 +186,90 @@ void testint2intmap(void)
   map_deinit_ex(&m);
 }
 
+int intcompar(const void* a, const void* b)
+{
+	return memcmp(a, b, sizeof(int));
+}
+
+void testint2intmapCompareWithBsearch(void)
+{ 
+  char szMessage[256];
+  clock_t beginTM, endTM;
+  map_int2int_t m;
+  map_init_ex(&m);
+  
+  const unsigned int max_keys = 1 << 24;
+  
+  int* keysArray  = malloc(max_keys * sizeof(int));
+  int* orderedArray  = malloc(max_keys * sizeof(int));
+  
+  if(!keysArray || !orderedArray)
+  {
+	  perror("malloc in failure!");
+	  return ;
+  }
+  
+  srand(time(NULL));
+  for(unsigned int i=0 ;i < max_keys; ++i)
+  {
+    map_set_ex(&m, i, i);
+	keysArray[i] = (int)rand();
+  }
+    
+  printf("use knuth shuffle alg to mixture the array\n");
+
+  for(unsigned int i= max_keys - 1; i>0; --i)
+  {
+	  unsigned int j = rand() %(i + 1);
+	  if(j != i)
+	  {
+		  int temp  = keysArray[i];
+		  keysArray[i] = keysArray[j];
+		  keysArray[j] = temp;
+	  }
+  }
+  memcpy(orderedArray, keysArray, max_keys * sizeof(int));
+    
+  
+  beginTM = clock();
+  qsort(orderedArray, max_keys, sizeof(int), intcompar);
+  endTM = clock();
+  printf("%s eclipsed seconds = %.5lf (s) for sorting the key array\n", __func__, (double)(endTM - beginTM)/CLOCKS_PER_SEC);
+  
+  void* found = bsearch(&keysArray[0], orderedArray, max_keys, sizeof(int), intcompar);
+  TEST_ASSERT_NOT_NULL_MESSAGE(found, "must find first original key in orderedArray");
+  
+  found = bsearch(&keysArray[max_keys-1], orderedArray, max_keys, sizeof(int), intcompar);
+  TEST_ASSERT_NOT_NULL_MESSAGE(found, "must find tail original key in orderedArray");
+  
+  beginTM = clock();
+  for(unsigned int i=0 ;i < max_keys; ++i)
+  {
+    TEST_ASSERT_NOT_NULL_MESSAGE(bsearch(&keysArray[0], orderedArray, max_keys, sizeof(int), intcompar),"must equal when get int2int value from ordered array for querying all key");
+  }
+  endTM = clock();
+  printf("%s eclipsed seconds = %.5lf (s) for query all key from ordered array\n", __func__, (double)(endTM - beginTM)/CLOCKS_PER_SEC);
+  
+ 
+  beginTM = clock();
+  for(unsigned int i=0 ;i < max_keys; ++i)
+  {
+    map_set_ex(&m, keysArray[i], i);
+  }
+  endTM = clock();
+  printf("%s eclipsed seconds = %.5lf (s) for constructing map\n", __func__, (double)(endTM - beginTM)/CLOCKS_PER_SEC);
+  
+  beginTM = clock();
+  for(unsigned int i=0 ;i < max_keys; ++i)
+  {
+    TEST_ASSERT_NOT_NULL_MESSAGE(map_get_ex(&m, keysArray[i]), "must equal when get int2int value from map for querying all key");
+  }
+  endTM = clock();
+  printf("%s eclipsed seconds = %.5lf (s) for query all key from map\n", __func__, (double)(endTM - beginTM)/CLOCKS_PER_SEC);
+
+  map_deinit_ex(&m);
+}
+
 void testint2intmap_iter(void)
 {
 
@@ -267,6 +350,8 @@ int main(void)
     RUN_TEST(testint2intmap_iter);
     RUN_TEST(testint2pvoidmap);
     RUN_TEST(testint2pvoidmap_iter);
+	RUN_TEST(testint2intmapCompareWithBsearch);
+	
     
     UNITY_END();
 

@@ -1,6 +1,6 @@
 
 # caption
-the source code of [/rxi/map](https://github.com/rxi/map) is very clear and effective, but it only provides the char* type as a key.
+the source code of [/rxi/map](https://github.com/rxi/map) is very clear and effective, but it only provides the `char*` type as a key.
 so I extend it to support primitive types using as a key :)
 
 ## extended map
